@@ -112,7 +112,7 @@ fn analyze(report_file: String) -> Result<(), Box<dyn Error>> {
     .map(|(_hash,set)|set.iter().sorted().collect::<Vec<&String>>())
     .sorted_by_cached_key(|v| v[0]) // puis tri sur les lignes/fichiers (sur le nom du 1er duplica v[0])
     .for_each(|f| {
-        print!("duplicates : {}",f.iter().join("\t"));
+        print!("duplicates : {}",f.iter().join(" 🟰 "));
         println!();
     });
     Ok(())

@@ -49,8 +49,8 @@ blakediff compare ~/musiques_hash_local.txt ~/musiques_hash_smb.txt
 
 _Results exemples:_
 ```
-only in ~/musiques_hash_smb.txt : /home/jeremie/Music/my_song012.mp3
-only in ~/musiques_hash_smb.txt : /home/jeremie/Music/my_song234.mp3
+only in ~/musiques_hash_smb.txt : /mnt/smbmount/Music/my_song012.mp3
+only in ~/musiques_hash_smb.txt : /mnt/smbmount/Music/my_song234.mp3
 only in ~/musiques_hash_local.txt : /home/jeremie/Music/my_song456.mp3
 duplicates : /home/jeremie/Music/shame.mp3 /mnt/smbmount/shame.mp3
 ```
