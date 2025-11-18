@@ -1,80 +1,254 @@
-# blakediff
+# blakediff 🐿️
 
-_⚠ This repository is only for testing purpose. It shouldn't be used on production._
+A fast, parallel file hashing and comparison tool using the BLAKE3 algorithm.
 
-A simple first version to make hash on all files in a directory and generate a report file with this format :
+**Features:**
+- 🚀 Fast BLAKE3 hashing with parallel processing
+- 📊 Multiple output formats (Text, JSON, CSV)
+- 🔍 Duplicate file detection
+- ⚖️ File set comparison between directories
+- 🧵 Optional parallel directory traversal
+- ✅ Comprehensive test coverage
+- 🛡️ Robust error handling
 
-```shell
-<hash_1> <path_file_1>
-<hash_2> <path_file_2>
-```
+## Installation
 
-## how to build and install ? i want to use it quickly !
-ok let's go
-```
+### Quick install
+```bash
 cargo install --path .
 ```
-## yeah ok, pretty simple... but how will I update the binary with new features in the future ? 🤔
-```
+
+### Update to latest version
+```bash
 git pull
 cargo install --path .
 ```
-_PS : this is the same command above ⬆️😎_
 
+## Building from source
 
-## Command `generate`
-Use this first subcommand to generate an output with all hashes and path's files and redirect this output into a report file.
-```shell
-blakediff generate <path_directory>  > report_file_1
-```
-the option `--parallel` or `-p` can be used to walk directories tree in multithreading (should be used only on ssd).  
+```bash
+# Build in debug mode
+cargo build
 
+# Build optimized release
+cargo build --release
 
-_Exemples :_
-```
-blakediff generate ~/Music > ~/hashmusics_local.txt
-blakediff generate /mnt/smbmount/Music > ~/hashmusics_smb.txt
-```
+# Run tests
+cargo test
 
-## Command `compare`
-Generate all missing hash from the path1 in path2 and missing file from the path2 in path1
-```shell
-blakediff compare <report_file_1> <report_file_2>
-```
-
-_Exemples :_
-```
-blakediff compare ~/musiques_hash_local.txt ~/musiques_hash_smb.txt
-```
-
-_Results exemples:_
-```
-only in ~/musiques_hash_smb.txt : /mnt/smbmount/Music/my_song012.mp3
-only in ~/musiques_hash_smb.txt : /mnt/smbmount/Music/my_song234.mp3
-only in ~/musiques_hash_local.txt : /home/jeremie/Music/my_song456.mp3
-duplicates : /home/jeremie/Music/shame.mp3 /mnt/smbmount/shame.mp3
+# Run linters
+cargo clippy
+cargo fmt --check
 ```
 
 
-## Perf comparison with sha256sum
-In order to avoid device bottleneck, put the directory to hash in a tmpfs, exemple with this 10G ramdisk :
-```
-sudo mount -t tmpfs -o size=10G tmpfs /media/virtuelram
+## Usage
+
+### Command: `generate`
+
+Generate a hash report for all files in a directory.
+
+**Basic usage:**
+```bash
+blakediff generate <directory> > report.txt
 ```
 
-- copy your files in this `/media/virtuelram` directory
+**Options:**
+- `--parallel, -p`: Use parallel directory traversal (recommended for SSDs only)
 
-- test with **sha256sum**
+**Output format:**
 ```
-IFS=$'\n'; set -f;for f in $(find /media/virtuelram -type f); do sha256sum "$f"; done;unset IFS; set +f
-```
-
-- test with **blakediff**
-```
-blakediff generate /media/virtuelram
+<hash> <file_path>
 ```
 
-unmount your ramdisk after use :
+**Examples:**
+```bash
+# Generate hash report for local music directory
+blakediff generate ~/Music > ~/music_local.txt
+
+# Generate with parallel processing
+blakediff generate --parallel ~/Music > ~/music_local.txt
+
+# Generate hash report for network mount
+blakediff generate /mnt/smbmount/Music > ~/music_smb.txt
 ```
-sudo umount /media/virtuelram
+
+---
+
+### Command: `analyze`
+
+Find duplicate files within a single report.
+
+**Basic usage:**
+```bash
+blakediff analyze <report_file>
 ```
+
+**Options:**
+- `--format, -f`: Output format (`text`, `json`, `csv`) - default: `text`
+
+**Examples:**
+```bash
+# Find duplicates (text output)
+blakediff analyze ~/music_local.txt
+
+# Find duplicates (JSON output)
+blakediff analyze --format json ~/music_local.txt
+
+# Find duplicates (CSV output)
+blakediff analyze --format csv ~/music_local.txt
+```
+
+**Text output example:**
+```
+duplicates : /home/user/Music/song1.mp3 🟰 /home/user/Music/copy/song1.mp3
+duplicates : /home/user/Music/song2.mp3 🟰 /home/user/Music/backup/song2.mp3
+```
+
+---
+
+### Command: `compare`
+
+Compare two hash reports and show unique/duplicate files.
+
+**Basic usage:**
+```bash
+blakediff compare <report_1> <report_2>
+```
+
+**Options:**
+- `--format, -f`: Output format (`text`, `json`, `csv`) - default: `text`
+
+**Examples:**
+```bash
+# Compare local and network music directories
+blakediff compare ~/music_local.txt ~/music_smb.txt
+
+# Compare with JSON output
+blakediff compare --format json ~/music_local.txt ~/music_smb.txt
+
+# Compare with CSV output
+blakediff compare --format csv ~/music_local.txt ~/music_smb.txt
+```
+
+**Text output example:**
+```
+only in ~/music_local.txt : /home/user/Music/new_song.mp3
+only in ~/music_smb.txt : /mnt/smbmount/Music/old_song.mp3
+duplicates : /home/user/Music/shared.mp3 🟰 /mnt/smbmount/Music/shared.mp3
+```
+
+
+## Performance
+
+### Why BLAKE3?
+
+BLAKE3 is significantly faster than SHA256 while maintaining excellent cryptographic properties:
+- Parallel processing support
+- Optimized for modern CPUs with SIMD instructions
+- Ideal for file hashing and integrity verification
+
+### Benchmarking
+
+To benchmark without I/O bottlenecks, use a tmpfs ramdisk:
+
+```bash
+# Create 10GB ramdisk
+sudo mount -t tmpfs -o size=10G tmpfs /media/ramdisk
+
+# Copy test files
+cp -r ~/test_directory /media/ramdisk/
+
+# Benchmark SHA256
+time (find /media/ramdisk -type f -exec sha256sum {} \;)
+
+# Benchmark BLAKE3 (blakediff)
+time blakediff generate /media/ramdisk
+
+# Cleanup
+sudo umount /media/ramdisk
+```
+
+### Performance tips
+
+- Use `--parallel` flag for SSDs (not recommended for HDDs)
+- Files > 16KB are automatically memory-mapped for faster hashing
+- Parallel hashing is automatically used for memory-mapped files
+
+---
+
+## Development
+
+### Running tests
+
+```bash
+# Run all tests (unit + integration)
+cargo test
+
+# Run with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_analyze_command
+```
+
+### Code quality
+
+```bash
+# Format code
+cargo fmt
+
+# Check formatting
+cargo fmt --check
+
+# Run clippy lints
+cargo clippy --all-targets --all-features
+
+# Run clippy with warnings as errors
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+### CI/CD
+
+The project uses GitHub Actions for continuous integration:
+- ✅ Build verification
+- ✅ Test execution (unit + integration)
+- ✅ Code formatting check (rustfmt)
+- ✅ Linting (clippy)
+
+---
+
+## Technical Details
+
+### Hash Report Format
+
+Each line in the report follows this format:
+```
+<blake3_hash> <absolute_file_path>
+```
+
+Example:
+```
+af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262 /home/user/file.txt
+```
+
+### Architecture
+
+- **Input module**: Optimized file reading with automatic mmap selection
+- **Parallel processing**: Rayon for multi-threaded hashing
+- **Memory efficiency**: Smart buffer sizing (64KB for optimal SIMD performance)
+- **Error handling**: Comprehensive error propagation with helpful messages
+
+---
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Contributing
+
+Contributions welcome! Please ensure:
+1. All tests pass (`cargo test`)
+2. Code is formatted (`cargo fmt`)
+3. No clippy warnings (`cargo clippy`)
+4. Add tests for new features

@@ -4,15 +4,31 @@ use std::{
     io::{self, Read},
 };
 
+/// Input abstraction for reading files
+///
+/// Automatically chooses between memory-mapped I/O and regular file I/O
+/// based on file size and characteristics for optimal performance.
 pub enum Input {
+    /// Memory-mapped file input (used for files > 16KB)
     Mmap(io::Cursor<memmap2::Mmap>),
+    /// Regular file input (used for small files)
     File(File),
 }
 
 impl Input {
-    // Open an input file, using mmap if appropriate. "-" means stdin. Note
-    // that this convention applies both to command line arguments, and to
-    // filepaths that appear in a checkfile.
+    /// Open an input file, using mmap if appropriate
+    ///
+    /// Files larger than 16KB will be memory-mapped for better performance.
+    /// Smaller files use regular file I/O to avoid mmap overhead.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to the file to open
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Input)` - Successfully opened input
+    /// * `Err(io::Error)` - Failed to open file
     pub fn open(path: &Path) -> io::Result<Self> {
         let file = File::open(path)?;
         if let Some(mmap) = maybe_memmap_file(&file)? {
@@ -21,6 +37,15 @@ impl Input {
         Ok(Self::File(file))
     }
 
+    /// Compute the BLAKE3 hash of the input
+    ///
+    /// Uses parallel hashing for memory-mapped files via Rayon.
+    /// Regular files are hashed single-threaded with optimized buffer sizes.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(String)` - Hexadecimal hash string
+    /// * `Err(io::Error)` - I/O error during reading
     pub fn hash(&mut self) -> io::Result<String> {
         let mut hasher = blake3::Hasher::new();
         match self {
@@ -85,11 +110,11 @@ fn maybe_memmap_file(file: &File) -> io::Result<Option<memmap2::Mmap>> {
     let file_size = metadata.len();
     Ok(
         if !metadata.is_file() ||// Not a real file.
-            file_size > isize::max_value() as u64 ||// Too long to safely map. https://github.com/danburkert/memmap-rs/issues/69
-            file_size == 0 || // Mapping an empty file currently fails. https://github.com/danburkert/memmap-rs/issues/72       
-            file_size < 16 * 1024 // Mapping small files is not worth it.
+            file_size > isize::MAX as u64 ||// Too long to safely map. https://github.com/danburkert/memmap-rs/issues/69
+            file_size == 0 || // Mapping an empty file currently fails. https://github.com/danburkert/memmap-rs/issues/72
+            file_size < 16 * 1024
+        // Mapping small files is not worth it.
         {
-            
             None
         } else {
             // Explicitly set the length of the memory map, so that filesystem
